@@ -3,10 +3,9 @@ pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Technical Analysis
+# Technical Analysis - TA-Lib only for compatibility
 TA-Lib>=0.4.29
 ta>=0.10.2
-pandas-ta>=0.3.14b
 
 # Async & Web
 aiohttp>=3.9.0
@@ -89,3 +88,6 @@ pre-commit>=3.5.0
 # Documentation
 mkdocs>=1.5.0
 mkdocs-material>=9.4.0
+
+# Note: pandas-ta removed due to Python version compatibility issues
+# All technical analysis will use TA-Lib which is more stable and widely supported
