@@ -1,0 +1,139 @@
+# Kubernetes ConfigMaps for Helios v3
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helios-config
+  namespace: helios
+  labels:
+    app: helios
+    component: config
+data:
+  # Application configuration
+  LOG_LEVEL: "INFO"
+  LOG_TO_FILE: "true"
+  ENVIRONMENT: "kubernetes"
+  SENTINEL_ENABLED: "true"
+  SENTINEL_AUTO_REPAIR: "true"
+  HEALTH_CHECK_ENABLED: "true"
+  METRICS_ENABLED: "true"
+  
+  # Trading configuration
+  TRADING_MODE: "paper"
+  INITIAL_CAPITAL: "100000"
+  MAX_PORTFOLIO_RISK: "0.10"
+  MAX_DAILY_DRAWDOWN: "0.20"
+  MAX_OPEN_POSITIONS: "10"
+  
+  # Alpaca configuration
+  ALPACA_BASE_URL: "https://paper-api.alpaca.markets"
+  ALPACA_WS_URL: "wss://stream.data.alpaca.markets/v2"
+  ALPACA_DATA_FEED: "iex"
+  
+  # Slack configuration
+  SLACK_CHANNEL: "helios-alerts"
+  SLACK_USERNAME: "Helios-Bot"
+  SLACK_ICON_EMOJI: ":robot_face:"
+  
+  # Container configuration
+  CONTAINER_TIMEZONE: "UTC"
+  
+  # Strategy configuration file
+  strategy.yaml: |
+    # Helios v3 Strategy Configuration
+    # YAML configuration for strategy activation and parameters
+    
+    # Global Strategy Settings
+    global:
+      enabled: true
+      max_concurrent_strategies: 3
+      position_sizing_mode: "risk_parity"
+      rebalance_frequency: "daily"
+      
+    # Strategy Definitions
+    strategies:
+      
+      # Trend Following Strategy
+      trend_following:
+        enabled: true
+        priority: 1
+        symbols:
+          - "AAPL"
+          - "MSFT"
+          - "GOOGL"
+        parameters:
+          fast_period: 20
+          slow_period: 50
+          signal_threshold: 0.7
+          min_data_length: 60
+        position_sizing:
+          base_size: 0.02
+          max_size: 0.05
+        
+      # Mean Reversion Strategy
+      mean_reversion:
+        enabled: true
+        priority: 2
+        symbols:
+          - "SPY"
+          - "QQQ"
+        parameters:
+          bb_period: 20
+          bb_std: 2.0
+          signal_threshold: 0.6
+          min_data_length: 50
+        position_sizing:
+          base_size: 0.015
+          max_size: 0.04
+---
+# PersistentVolumeClaims
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: helios-logs-pvc
+  namespace: helios
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: helios-data-pvc
+  namespace: helios
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: helios
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: helios
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard

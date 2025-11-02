@@ -1,0 +1,75 @@
+# Kubernetes Services for Helios v3
+apiVersion: v1
+kind: Service
+metadata:
+  name: helios-app-service
+  namespace: helios
+  labels:
+    app: helios
+    component: trading-engine
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: helios
+    component: trading-engine
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: helios
+  labels:
+    app: postgres
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: helios
+  labels:
+    app: redis
+    component: cache
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: redis
+---
+# Optional: LoadBalancer service for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: helios-external-service
+  namespace: helios
+  labels:
+    app: helios
+    component: external-access
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: helios
+    component: trading-engine
