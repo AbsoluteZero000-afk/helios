@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -74,15 +74,15 @@ class Settings(BaseSettings):
         default_factory=lambda: {"TCP_KEEPIDLE": 1, "TCP_KEEPINTVL": 3, "TCP_KEEPCNT": 5}
     )
 
-    # Celery Configuration
+    # Celery Configuration (simplified to avoid JSON parsing issues)
     celery_broker_url: str = Field(default="redis://localhost:6379/1", alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", alias="CELERY_RESULT_BACKEND")
-    celery_task_serializer: str = "json"
-    celery_result_serializer: str = "json"
-    celery_accept_content: List[str] = Field(default_factory=lambda: ["json"])
-    celery_timezone: str = "UTC"
+    celery_task_serializer: str = Field(default="json", alias="CELERY_TASK_SERIALIZER")
+    celery_result_serializer: str = Field(default="json", alias="CELERY_RESULT_SERIALIZER")
+    celery_accept_content: str = Field(default="json", alias="CELERY_ACCEPT_CONTENT")  # Fixed: string not List
+    celery_timezone: str = Field(default="UTC", alias="CELERY_TIMEZONE")
     celery_worker_prefetch_multiplier: int = Field(default=1, ge=1, le=10)
-    celery_task_acks_late: bool = True
+    celery_task_acks_late: bool = Field(default=True, alias="CELERY_TASK_ACKS_LATE")
     celery_worker_max_tasks_per_child: int = Field(default=1000, ge=100, le=10000)
 
     # Trading APIs
@@ -133,7 +133,7 @@ class Settings(BaseSettings):
     slack_username: str = Field(default="Helios-Bot", alias="SLACK_USERNAME")
     slack_icon_emoji: str = Field(default=":robot_face:", alias="SLACK_ICON_EMOJI")
     slack_mention_channel: bool = Field(default=False, alias="SLACK_MENTION_CHANNEL")
-    slack_mention_users: List[str] = Field(default_factory=list, alias="SLACK_MENTION_USERS")
+    slack_mention_users: str = Field(default="", alias="SLACK_MENTION_USERS")  # Fixed: string not List
 
     # System Sentinel Configuration
     sentinel_enabled: bool = Field(default=True, alias="SENTINEL_ENABLED")
@@ -214,6 +214,26 @@ class Settings(BaseSettings):
         Path(v).mkdir(parents=True, exist_ok=True)
         return v
 
+    @field_validator("slack_mention_users", mode="before")
+    @classmethod
+    def parse_slack_users(cls, v: Union[str, List[str]]) -> List[str]:
+        """Parse comma-separated string or list of Slack users."""
+        if isinstance(v, str):
+            if not v.strip():
+                return []
+            return [user.strip() for user in v.split(",") if user.strip()]
+        return v or []
+
+    @field_validator("celery_accept_content", mode="before")
+    @classmethod
+    def parse_celery_content(cls, v: Union[str, List[str]]) -> List[str]:
+        """Parse comma-separated content types or return as list."""
+        if isinstance(v, str):
+            if not v.strip():
+                return ["json"]
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v or ["json"]
+
     @model_validator(mode="after")
     def validate_order_values(self) -> "Settings":
         if self.min_order_value >= self.max_order_value:
@@ -225,6 +245,19 @@ class Settings(BaseSettings):
         if self.risk_position_limit > self.max_portfolio_risk:
             raise ValueError("Individual position risk cannot exceed portfolio risk")
         return self
+    
+    # Helper method to get celery config with proper types
+    def get_celery_accept_content_list(self) -> List[str]:
+        """Get celery accept content as a proper list."""
+        if isinstance(self.celery_accept_content, str):
+            return [self.celery_accept_content]
+        return self.celery_accept_content
+    
+    def get_slack_mention_users_list(self) -> List[str]:
+        """Get Slack mention users as a proper list."""
+        if isinstance(self.slack_mention_users, str):
+            return [u.strip() for u in self.slack_mention_users.split(",") if u.strip()]
+        return self.slack_mention_users
 
 
 # Lazy singleton
@@ -278,7 +311,7 @@ def get_celery_config() -> Dict[str, Any]:
         "result_backend": s.celery_result_backend,
         "task_serializer": s.celery_task_serializer,
         "result_serializer": s.celery_result_serializer,
-        "accept_content": s.celery_accept_content,
+        "accept_content": s.get_celery_accept_content_list(),  # Use helper method
         "timezone": s.celery_timezone,
         "worker_prefetch_multiplier": s.celery_worker_prefetch_multiplier,
         "task_acks_late": s.celery_task_acks_late,
