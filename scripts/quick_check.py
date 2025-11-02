@@ -12,7 +12,8 @@ from pathlib import Path
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 
 def main():
@@ -30,7 +31,8 @@ def main():
         # Test configuration loading
         print("Testing configuration...")
         settings = config.settings.get_settings()
-        print(f"✓ Settings loaded - Environment: {settings.environment.value}")
+        env_display = getattr(settings.environment, "value", settings.environment)
+        print(f"✓ Settings loaded - Environment: {env_display}")
         
         # Test logging setup
         print("Testing logging...")
