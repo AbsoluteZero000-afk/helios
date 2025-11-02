@@ -1,0 +1,62 @@
+# Helios v3 Clean Requirements - Python 3.11+ Compatible
+# NO pandas-ta - uses TA-Lib exclusively for technical analysis
+
+# Core Data Science
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Technical Analysis (TA-Lib ONLY)
+TA-Lib>=0.4.29
+ta>=0.10.2
+
+# Async Framework
+aiohttp>=3.9.0
+aiofiles>=23.0.0
+
+# Configuration
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+PyYAML>=6.0
+
+# Database
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.12.0
+
+# Redis & Task Queue
+redis>=5.0.0
+hiredis>=2.2.0
+celery>=5.3.0
+kombu>=5.3.0
+
+# Logging
+loguru>=0.7.0
+
+# Trading APIs
+alpaca-trade-api>=3.2.0
+yfinance>=0.2.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Monitoring
+psutil>=5.9.0
+
+# Slack
+slack-sdk>=3.26.0
+
+# Utilities
+click>=8.1.0
+tenacity>=8.2.0
+pytz>=2023.3
+
+# Testing (Development Only)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Development Tools (Optional)
+mypy>=1.8.0
+ruff>=0.1.0
+black>=23.0.0
