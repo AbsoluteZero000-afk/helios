@@ -62,7 +62,12 @@ class Event(ABC):
     Base event class for all system events.
     
     All events must inherit from this class and implement the event_type property.
+    FIXED: All required fields (no defaults) come first
     """
+    # Required fields first (no defaults)
+    # (no required fields in base class)
+    
+    # Optional/default fields after
     timestamp: datetime = field(default_factory=datetime.now)
     event_id: str = field(default_factory=lambda: f"evt_{datetime.now().timestamp()}")
     source: Optional[str] = None
@@ -89,10 +94,14 @@ class Event(ABC):
 
 @dataclass
 class MarketDataEvent(Event):
-    """Market data event containing price and volume information."""
+    """Market data event containing price and volume information.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     symbol: str
     price: float
     volume: int
+    
+    # Optional fields after
     bid: Optional[float] = None
     ask: Optional[float] = None
     
@@ -103,11 +112,15 @@ class MarketDataEvent(Event):
 
 @dataclass
 class SignalEvent(Event):
-    """Trading signal event from strategy analysis."""
+    """Trading signal event from strategy analysis.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     symbol: str
     signal_type: str  # 'BUY', 'SELL', 'HOLD'
     strength: float  # Signal strength 0.0 to 1.0
     strategy_name: str
+    
+    # Optional fields after
     target_price: Optional[float] = None
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
@@ -119,11 +132,15 @@ class SignalEvent(Event):
 
 @dataclass
 class OrderEvent(Event):
-    """Order execution event."""
+    """Order execution event.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     symbol: str
     order_type: str  # 'MARKET', 'LIMIT', 'STOP'
     side: str  # 'BUY', 'SELL'
     quantity: float
+    
+    # Optional fields after
     price: Optional[float] = None
     order_id: Optional[str] = None
     status: str = "PENDING"
@@ -135,7 +152,9 @@ class OrderEvent(Event):
 
 @dataclass
 class FillEvent(Event):
-    """Order fill event."""
+    """Order fill event.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     symbol: str
     side: str  # 'BUY', 'SELL'
     quantity: float
@@ -144,6 +163,8 @@ class FillEvent(Event):
     order_id: str
     execution_id: str
     
+    # No optional fields in this class
+    
     @property
     def event_type(self) -> EventType:
         return EventType.ORDER_FILLED
@@ -151,12 +172,16 @@ class FillEvent(Event):
 
 @dataclass
 class PositionEvent(Event):
-    """Position update event."""
+    """Position update event.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     symbol: str
     quantity: float
     avg_price: float
     market_value: float
     unrealized_pnl: float
+    
+    # Optional/default fields after
     realized_pnl: float = 0.0
     
     @property
@@ -166,12 +191,16 @@ class PositionEvent(Event):
 
 @dataclass
 class RiskEvent(Event):
-    """Risk management event."""
+    """Risk management event.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     risk_type: str  # 'POSITION_SIZE', 'DRAWDOWN', 'CONCENTRATION'
     severity: str  # 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
     message: str
     current_value: float
     threshold_value: float
+    
+    # Optional fields after
     symbol: Optional[str] = None
     
     @property
@@ -181,9 +210,13 @@ class RiskEvent(Event):
 
 @dataclass
 class SystemEvent(Event):
-    """System status event."""
+    """System status event.
+    FIXED: Required fields first, optional/default fields after"""
+    # Required fields first (no defaults)
     system_type: EventType
     message: str
+    
+    # Optional fields after
     component: Optional[str] = None
     error_details: Optional[str] = None
     
