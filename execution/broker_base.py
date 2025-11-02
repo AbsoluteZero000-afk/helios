@@ -6,7 +6,7 @@ position management, and account information.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -155,48 +155,22 @@ class BrokerBase(ABC):
     
     @abstractmethod
     async def disconnect(self) -> None:
-        """
-        Disconnect from the broker.
-        """
+        """Disconnect from the broker."""
         pass
     
     @abstractmethod
     async def place_order(self, order_request: OrderRequest) -> OrderResponse:
-        """
-        Place an order with the broker.
-        
-        Args:
-            order_request: Order details
-            
-        Returns:
-            OrderResponse: Order placement result
-        """
+        """Place an order with the broker."""
         pass
     
     @abstractmethod
     async def cancel_order(self, order_id: str) -> bool:
-        """
-        Cancel an existing order.
-        
-        Args:
-            order_id: Order ID to cancel
-            
-        Returns:
-            bool: True if cancellation successful
-        """
+        """Cancel an existing order."""
         pass
     
     @abstractmethod
     async def get_order(self, order_id: str) -> Optional[OrderResponse]:
-        """
-        Get order information.
-        
-        Args:
-            order_id: Order ID to retrieve
-            
-        Returns:
-            Optional[OrderResponse]: Order information or None
-        """
+        """Get order information."""
         pass
     
     @abstractmethod
@@ -206,85 +180,37 @@ class BrokerBase(ABC):
         status: Optional[OrderStatus] = None,
         limit: int = 100
     ) -> List[OrderResponse]:
-        """
-        Get list of orders.
-        
-        Args:
-            symbol: Filter by symbol
-            status: Filter by status
-            limit: Maximum number of orders to return
-            
-        Returns:
-            List[OrderResponse]: List of orders
-        """
+        """Get list of orders."""
         pass
     
     @abstractmethod
     async def get_positions(self) -> List[Position]:
-        """
-        Get all current positions.
-        
-        Returns:
-            List[Position]: List of positions
-        """
+        """Get all current positions."""
         pass
     
     @abstractmethod
     async def get_position(self, symbol: str) -> Optional[Position]:
-        """
-        Get position for a specific symbol.
-        
-        Args:
-            symbol: Symbol to get position for
-            
-        Returns:
-            Optional[Position]: Position information or None
-        """
+        """Get position for a specific symbol."""
         pass
     
     @abstractmethod
     async def get_account_info(self) -> AccountInfo:
-        """
-        Get account information.
-        
-        Returns:
-            AccountInfo: Account details
-        """
+        """Get account information."""
         pass
     
     @abstractmethod
     async def get_market_data(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """
-        Get current market data for a symbol.
-        
-        Args:
-            symbol: Symbol to get data for
-            
-        Returns:
-            Optional[Dict[str, Any]]: Market data or None
-        """
+        """Get current market data for a symbol."""
         pass
     
     async def validate_order(self, order_request: OrderRequest) -> Tuple[bool, Optional[str]]:
-        """
-        Validate an order request before submission.
-        
-        Args:
-            order_request: Order to validate
-            
-        Returns:
-            Tuple[bool, Optional[str]]: (is_valid, error_message)
-        """
-        # Basic validation
+        """Validate an order request before submission."""
         if order_request.quantity <= 0:
             return False, "Quantity must be positive"
-        
         if order_request.order_type in [OrderType.LIMIT, OrderType.STOP_LIMIT]:
             if not order_request.price or order_request.price <= 0:
                 return False, "Price must be specified and positive for limit orders"
-        
         if order_request.order_type in [OrderType.STOP, OrderType.STOP_LIMIT, OrderType.TRAILING_STOP]:
             if not order_request.stop_price or order_request.stop_price <= 0:
                 return False, "Stop price must be specified and positive for stop orders"
-        
         return True, None
