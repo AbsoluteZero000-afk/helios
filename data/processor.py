@@ -2,7 +2,7 @@
 Helios Data Processing v3
 
 Advanced data processing utilities for market data cleaning,
-transformation, and technical indicator computation.
+transformation, and technical indicator computation using TA-Lib exclusively.
 """
 
 import pandas as pd
@@ -44,12 +44,24 @@ class DataProcessor:
     """
     Advanced data processing for financial market data.
     
-    Provides cleaning, validation, transformation, and technical analysis.
+    Provides cleaning, validation, transformation, and technical analysis
+    using TA-Lib for reliable and consistent indicator calculations.
     """
     
     def __init__(self):
         """Initialize data processor."""
         self.logger = logger
+        self.talib_available = self._check_talib_availability()
+    
+    def _check_talib_availability(self) -> bool:
+        """Check if TA-Lib is available for import."""
+        try:
+            import talib
+            return True
+        except ImportError:
+            logger.warning("TA-Lib not available. Install with: pip install TA-Lib")
+            logger.info("macOS users: brew install ta-lib")
+            return False
     
     def clean_ohlcv_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -212,7 +224,8 @@ class DataProcessor:
     
     def add_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Add common technical indicators to OHLCV data.
+        Add common technical indicators using TA-Lib when available,
+        fallback to pandas calculations otherwise.
         
         Args:
             df: DataFrame with OHLCV data
@@ -225,6 +238,96 @@ class DataProcessor:
         
         df = df.copy()
         
+        if self.talib_available:
+            return self._add_talib_indicators(df)
+        else:
+            return self._add_pandas_indicators(df)
+    
+    def _add_talib_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add technical indicators using TA-Lib.
+        
+        Args:
+            df: DataFrame with OHLCV data
+            
+        Returns:
+            pd.DataFrame: DataFrame with TA-Lib indicators added
+        """
+        try:
+            import talib
+            
+            # Convert to numpy arrays for TA-Lib
+            high = df['high'].values
+            low = df['low'].values
+            close = df['close'].values
+            volume = df['volume'].values if 'volume' in df.columns else None
+            
+            # Moving Averages using TA-Lib
+            df['sma_20'] = talib.SMA(close, timeperiod=20)
+            df['sma_50'] = talib.SMA(close, timeperiod=50)
+            df['ema_12'] = talib.EMA(close, timeperiod=12)
+            df['ema_26'] = talib.EMA(close, timeperiod=26)
+            
+            # MACD using TA-Lib
+            df['macd'], df['macd_signal'], df['macd_histogram'] = talib.MACD(
+                close, fastperiod=12, slowperiod=26, signalperiod=9
+            )
+            
+            # RSI using TA-Lib
+            df['rsi'] = talib.RSI(close, timeperiod=14)
+            
+            # Bollinger Bands using TA-Lib
+            df['bb_upper'], df['bb_middle'], df['bb_lower'] = talib.BBANDS(
+                close, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0
+            )
+            df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+            
+            # Additional TA-Lib indicators
+            df['atr'] = talib.ATR(high, low, close, timeperiod=14)
+            df['adx'] = talib.ADX(high, low, close, timeperiod=14)
+            df['cci'] = talib.CCI(high, low, close, timeperiod=14)
+            df['williams_r'] = talib.WILLR(high, low, close, timeperiod=14)
+            
+            # Momentum indicators
+            df['momentum'] = talib.MOM(close, timeperiod=10)
+            df['roc'] = talib.ROC(close, timeperiod=10)
+            
+            # Volume indicators (if volume data available)
+            if volume is not None:
+                df['ad'] = talib.AD(high, low, close, volume)  # Accumulation/Distribution
+                df['obv'] = talib.OBV(close, volume)  # On-Balance Volume
+                
+                # Volume-based simple indicators
+                df['volume_sma'] = talib.SMA(volume, timeperiod=20)
+                df['volume_ratio'] = volume / df['volume_sma'].values
+            
+            # Pattern Recognition (select useful patterns)
+            if 'open' in df.columns:
+                open_prices = df['open'].values
+                df['doji'] = talib.CDLDOJI(open_prices, high, low, close)
+                df['hammer'] = talib.CDLHAMMER(open_prices, high, low, close)
+                df['shooting_star'] = talib.CDLSHOOTINGSTAR(open_prices, high, low, close)
+                df['engulfing'] = talib.CDLENGULFING(open_prices, high, low, close)
+            
+            logger.debug(f"Added TA-Lib technical indicators to {len(df)} records")
+            
+        except Exception as e:
+            logger.error(f"Failed to add TA-Lib indicators: {e}")
+            logger.warning("Falling back to pandas-based indicators")
+            df = self._add_pandas_indicators(df)
+        
+        return df
+    
+    def _add_pandas_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add technical indicators using pandas calculations (fallback).
+        
+        Args:
+            df: DataFrame with OHLCV data
+            
+        Returns:
+            pd.DataFrame: DataFrame with pandas-based indicators added
+        """
         try:
             # Simple Moving Averages
             df['sma_20'] = df['close'].rolling(window=20).mean()
@@ -255,15 +358,71 @@ class DataProcessor:
             df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
             df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
             
+            # ATR (Average True Range)
+            if all(col in df.columns for col in ['high', 'low', 'open']):
+                tr1 = df['high'] - df['low']
+                tr2 = abs(df['high'] - df['close'].shift(1))
+                tr3 = abs(df['low'] - df['close'].shift(1))
+                true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+                df['atr'] = true_range.rolling(window=14).mean()
+            
             # Volume indicators
             if 'volume' in df.columns:
                 df['volume_sma'] = df['volume'].rolling(window=20).mean()
                 df['volume_ratio'] = df['volume'] / df['volume_sma']
+                
+                # On-Balance Volume (simplified)
+                volume_direction = np.where(df['close'] > df['close'].shift(1), 1, -1)
+                df['obv'] = (df['volume'] * volume_direction).cumsum()
             
-            logger.debug(f"Added technical indicators to {len(df)} records")
+            logger.debug(f"Added pandas-based technical indicators to {len(df)} records")
             
         except Exception as e:
-            logger.error(f"Failed to add technical indicators: {e}")
+            logger.error(f"Failed to add pandas indicators: {e}")
+        
+        return df
+    
+    def calculate_custom_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate custom indicators not available in standard libraries.
+        
+        Args:
+            df: DataFrame with OHLCV data
+            
+        Returns:
+            pd.DataFrame: DataFrame with custom indicators added
+        """
+        if df.empty or 'close' not in df.columns:
+            return df
+        
+        df = df.copy()
+        
+        try:
+            # Custom Stochastic Oscillator
+            if all(col in df.columns for col in ['high', 'low', 'close']):
+                # Calculate %K
+                lowest_low = df['low'].rolling(window=14).min()
+                highest_high = df['high'].rolling(window=14).max()
+                df['stoch_k'] = 100 * ((df['close'] - lowest_low) / (highest_high - lowest_low))
+                
+                # Calculate %D (3-period SMA of %K)
+                df['stoch_d'] = df['stoch_k'].rolling(window=3).mean()
+            
+            # Custom volatility indicators
+            df['realized_volatility'] = df['close'].pct_change().rolling(window=20).std() * np.sqrt(252)
+            df['price_channel_high'] = df['high'].rolling(window=20).max()
+            df['price_channel_low'] = df['low'].rolling(window=20).min()
+            df['price_channel_mid'] = (df['price_channel_high'] + df['price_channel_low']) / 2
+            
+            # Custom trend strength indicator
+            sma_10 = df['close'].rolling(window=10).mean()
+            sma_30 = df['close'].rolling(window=30).mean()
+            df['trend_strength'] = abs(sma_10 - sma_30) / df['close']
+            
+            logger.debug(f"Added custom technical indicators to {len(df)} records")
+            
+        except Exception as e:
+            logger.error(f"Failed to add custom indicators: {e}")
         
         return df
 
