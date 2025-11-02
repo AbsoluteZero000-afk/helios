@@ -1,18 +1,21 @@
-# Core Framework Dependencies (Python 3.11+)
+# Helios v3 Requirements - Python 3.11+ Compatible
+# Fixed: websockets conflict with alpaca-trade-api resolved
+
+# Core Framework Dependencies
 pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Technical Analysis - TA-Lib only for compatibility
+# Technical Analysis - TA-Lib only (no pandas-ta)
 TA-Lib>=0.4.29
 ta>=0.10.2
 
-# Async & Web
+# Async & Web (websockets pinned to avoid alpaca conflict)
 aiohttp>=3.9.0
 aiofiles>=23.0.0
 fastapi>=0.100.0
 uvicorn[standard]>=0.20.0
-websockets>=11.0
+websockets>=9.0,<11.0  # Fixed: alpaca-trade-api requires <11
 
 # Configuration & Settings
 pydantic>=2.5.0
@@ -37,7 +40,7 @@ kombu>=5.3.0
 # Logging
 loguru>=0.7.0
 
-# Trading APIs
+# Trading APIs (alpaca-trade-api requires websockets<11)
 alpaca-trade-api>=3.2.0
 ccxt>=4.1.0
 yfinance>=0.2.0
@@ -89,5 +92,7 @@ pre-commit>=3.5.0
 mkdocs>=1.5.0
 mkdocs-material>=9.4.0
 
-# Note: pandas-ta removed due to Python version compatibility issues
-# All technical analysis will use TA-Lib which is more stable and widely supported
+# NOTES:
+# - pandas-ta removed due to Python 3.11+ compatibility issues
+# - websockets pinned to <11 to resolve conflict with alpaca-trade-api
+# - All technical analysis uses TA-Lib for better performance and stability
