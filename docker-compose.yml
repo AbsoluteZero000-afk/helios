@@ -1,0 +1,211 @@
+# Docker Compose for Helios v3 Development and Production
+# Provides complete backend stack with Redis, PostgreSQL, and Celery
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: helios_postgres
+    environment:
+      POSTGRES_DB: helios
+      POSTGRES_USER: helios
+      POSTGRES_PASSWORD: helios
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - helios_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helios -d helios"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: helios_redis
+    command: redis-server --appendonly yes --requirepass helios_redis_pass
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+    networks:
+      - helios_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "helios_redis_pass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Helios Main Application
+  helios_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    container_name: helios_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=docker
+      - DATABASE_URL=postgresql+psycopg2://helios:helios@postgres:5432/helios
+      - REDIS_URL=redis://:helios_redis_pass@redis:6379/0
+      - CELERY_BROKER_URL=redis://:helios_redis_pass@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:helios_redis_pass@redis:6379/2
+    env_file:
+      - .env
+    volumes:
+      - logs_data:/logs
+      - app_data:/data
+      - ./config:/app/config:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - helios_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "from utils.health import health_check; health_check()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    container_name: helios_celery_worker
+    command: celery -A workers.tasks worker --loglevel=info --concurrency=4
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=docker
+      - DATABASE_URL=postgresql+psycopg2://helios:helios@postgres:5432/helios
+      - REDIS_URL=redis://:helios_redis_pass@redis:6379/0
+      - CELERY_BROKER_URL=redis://:helios_redis_pass@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:helios_redis_pass@redis:6379/2
+    env_file:
+      - .env
+    volumes:
+      - logs_data:/logs
+      - app_data:/data
+      - ./config:/app/config:ro
+    networks:
+      - helios_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "workers.tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Celery Beat Scheduler (Optional)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: 1000
+        GROUP_ID: 1000
+    container_name: helios_celery_beat
+    command: celery -A workers.tasks beat --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=docker
+      - DATABASE_URL=postgresql+psycopg2://helios:helios@postgres:5432/helios
+      - REDIS_URL=redis://:helios_redis_pass@redis:6379/0
+      - CELERY_BROKER_URL=redis://:helios_redis_pass@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:helios_redis_pass@redis:6379/2
+    env_file:
+      - .env
+    volumes:
+      - logs_data:/logs
+      - app_data:/data
+      - ./config:/app/config:ro
+    networks:
+      - helios_network
+    restart: unless-stopped
+    profiles:
+      - scheduler
+
+  # Redis Commander (Development Only)
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    container_name: helios_redis_commander
+    environment:
+      - REDIS_HOSTS=redis:redis://:helios_redis_pass@redis:6379/0
+    ports:
+      - "8081:8081"
+    networks:
+      - helios_network
+    depends_on:
+      - redis
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # pgAdmin (Development Only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: helios_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@helios.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8080:80"
+    networks:
+      - helios_network
+    depends_on:
+      - postgres
+    profiles:
+      - dev
+    restart: unless-stopped
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  logs_data:
+    driver: local
+  app_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# Custom network
+networks:
+  helios_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,211 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "helios"
+version = "3.0.0"
+description = "Production-grade quantitative trading framework with event-driven architecture and self-healing capabilities"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+keywords = [
+    "trading", "quantitative", "finance", "algorithmic", "backtesting",
+    "portfolio", "risk-management", "technical-analysis", "event-driven"
+]
+authors = [
+    {name = "Helios Team", email = "team@helios.trading"}
+]
+maintainers = [
+    {name = "Helios Team", email = "team@helios.trading"}
+]
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "TA-Lib>=0.4.29",
+    "SQLAlchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "redis>=5.0.0",
+    "celery>=5.3.0",
+    "aiohttp>=3.9.0",
+    "fastapi>=0.100.0",
+    "pydantic>=2.5.0",
+    "loguru>=0.7.0",
+    "alpaca-trade-api>=3.2.0",
+    "slack-sdk>=3.26.0",
+    "click>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.8.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "pre-commit>=3.5.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+]
+monitoring = [
+    "prometheus-client>=0.17.0",
+    "grafana-api>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/AbsoluteZero000-afk/helios"
+Documentation = "https://github.com/AbsoluteZero000-afk/helios/wiki"
+Repository = "https://github.com/AbsoluteZero000-afk/helios.git"
+"Bug Reports" = "https://github.com/AbsoluteZero000-afk/helios/issues"
+"Funding" = "https://github.com/sponsors/AbsoluteZero000-afk"
+"Say Thanks!" = "https://github.com/AbsoluteZero000-afk/helios/stargazers"
+
+[project.scripts]
+helios = "main:main"
+helios-backtest = "run_backtest:cli"
+helios-sentinel = "utils.sentinel:cli"
+helios-worker = "workers.tasks:start_worker"
+
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["src"] by default)
+include = ["*"]  # package names should match these glob patterns (["*"] by default)
+exclude = ["tests*", "docs*"]  # exclude packages matching these glob patterns
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json", "*.toml", "*.cfg", "*.ini"]
+
+# Tool configurations
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+norecursedirs = [".*", "build", "dist", "CVS", "_darcs", "{arch}", "*.egg", "venv"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m "not slow"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "api: marks tests that require API access",
+]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["."]  
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+    "conftest.py",
+    "*/__init__.py",
+    "*/migrations/*",
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\):",
+    "@(abc\.)?abstractmethod",
+]
+ignore_errors = true
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pandas.*",
+    "numpy.*",
+    "talib.*",
+    "alpaca_trade_api.*",
+    "ccxt.*",
+    "yfinance.*",
+    "ta.*",
+]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["C901", "F811"]
